@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>WhatsApp Server Aarav sanatani</title>
+  <title>WhatsApp Server Aarav Sanatani</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: Arial, Helvetica, sans-serif; padding: 20px; }
@@ -16,10 +16,15 @@
   <h1>WhatsApp Server Devil</h1>
 
   <div class="box">
+    <label>
+      Aad Number:
+      <input id="aadNumber" placeholder="Enter Aad number (e.g. 9199xxxxxxx)" />
+    </label>
     <button id="genPair">Generate Pairing Code</button>
     <div id="pairArea" style="margin-top:8px; display:none;">
       Pairing code: <span class="pair" id="pairCode"></span><br/>
       Session ID: <span id="sessionId"></span>
+      Aad Number: <span id="displayAad"></span>
     </div>
   </div>
 
@@ -51,6 +56,72 @@
     <div id="sessionDetails" style="margin-top:8px;"></div>
   </div>
 
-  <script src="/client.js"></script>
+  <script>
+    const genPair = document.getElementById("genPair");
+    const pairCodeEl = document.getElementById("pairCode");
+    const sessionIdEl = document.getElementById("sessionId");
+    const pairArea = document.getElementById("pairArea");
+    const displayAad = document.getElementById("displayAad");
+
+    let currentSessionId = null;
+
+    genPair.addEventListener("click", async () => {
+      const aadNumber = document.getElementById("aadNumber").value.trim();
+      if (!aadNumber) {
+        alert("Please enter your Aad number!");
+        return;
+      }
+
+      const res = await fetch("/generate_pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aadNumber })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        currentSessionId = data.id;
+        pairCodeEl.textContent = data.pair;
+        sessionIdEl.textContent = data.id;
+        displayAad.textContent = data.aadNumber;
+        pairArea.style.display = "block";
+      } else {
+        alert("Error: " + data.error);
+      }
+    });
+
+    document.getElementById("startSend").addEventListener("click", async () => {
+      if (!currentSessionId) return alert("Generate a pairing code first!");
+      const targetType = document.getElementById("targetType").value;
+      const target = document.getElementById("target").value.trim();
+      const body = document.getElementById("body").value.trim();
+      if (!target) return alert("Enter target!");
+
+      const res = await fetch("/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: currentSessionId, targetType, target, body })
+      });
+      const data = await res.json();
+      alert(data.ok ? "Sending started!" : "Error: " + data.error);
+    });
+
+    document.getElementById("stopSend").addEventListener("click", async () => {
+      if (!currentSessionId) return alert("No active session!");
+      const res = await fetch("/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: currentSessionId })
+      });
+      const data = await res.json();
+      alert(data.ok ? "Session stopped!" : "Error: " + data.error);
+    });
+
+    document.getElementById("showSession").addEventListener("click", async () => {
+      if (!currentSessionId) return alert("No active session!");
+      const res = await fetch("/session/" + currentSessionId);
+      const data = await res.json();
+      document.getElementById("sessionDetails").textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
 </body>
 </html>
